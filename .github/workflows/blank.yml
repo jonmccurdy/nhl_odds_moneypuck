@@ -1,36 +1,48 @@
-# This is a basic workflow to help you get started with Actions
+name: NHL Odds + MoneyPuck Dashboard
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+  schedule:
+    - cron: "0 12 * * *"   # Runs every day at 7 AM Eastern (12:00 UTC)
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: write
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  update-dashboard:
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Install required R packages
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          Rscript -e "install.packages(c('httr','jsonlite','dplyr','readr','lubridate','purrr','ggplot2'))"
+
+      - name: Run Odds API script
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          Rscript R/download_odds.R
+
+      - name: Run MoneyPuck script
+        run: |
+          Rscript R/download_moneypuck.R
+
+      - name: Run merge + visualization script
+        run: |
+          Rscript R/merge_visualize.R
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Daily update: $(date)" || echo "No changes to commit"
+          git push || echo "Push failed"
