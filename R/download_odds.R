@@ -5,7 +5,7 @@ library(readr)
 library(lubridate)
 library(purrr)
 
-api_key <- "5282f67c29680a6e2eb36b79b1305ac5"
+api_key <- "ODDS_API_KEY"
 
 odds_url <- paste0(
   "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/?",
